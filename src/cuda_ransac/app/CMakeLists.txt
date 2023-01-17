@@ -1,0 +1,11 @@
+add_executable(test_solver_trans_inter_2ac test_solver_trans_inter_2ac.cpp)
+target_link_libraries(test_solver_trans_inter_2ac cuda_ransac)
+
+add_executable(test_solver_trans_intra_2ac test_solver_trans_intra_2ac.cpp)
+target_link_libraries(test_solver_trans_intra_2ac cuda_ransac)
+
+# add_executable(qr_cuda_test qr_cuda_test.cpp)
+# target_link_libraries(qr_cuda_test cuda_ransac)
+
+# add_executable(evd_cuda_test evd_cuda_test.cpp)
+# target_link_libraries(evd_cuda_test cuda_ransac)

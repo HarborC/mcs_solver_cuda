@@ -22,10 +22,6 @@ set(CMAKE_CUDA_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC") 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC") 
 
-find_package(Boost REQUIRED COMPONENTS filesystem system thread serialization regex timer)
-include_directories(${Boost_INCLUDE_DIRS})
-message("Found Boost ${Boost_VERSION}")
-
 find_package(CUDA REQUIRED)
 
 include_directories(

@@ -24,7 +24,7 @@ Eigen::MatrixXcd solve_equation_intra_cam_48(double *input, double* zr, double* 
 }
 
 int main() { 
-    int N = 10000;
+    int N = 30;
     bool is_known_angle = false;
     AC_TYPE actype = AC_TYPE::INTRA_CAM_CONSTRAINT_FULL;
 

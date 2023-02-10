@@ -321,6 +321,13 @@ __global__ void solver_trans_inter_2ac_core(UnitSample *all_samples, size_t N) {
 }
 
 void solver_trans_inter_2ac() {
+    int deviceId;
+    int numberOfSMs;
+
+    cudaGetDevice(&deviceId);
+    cudaDeviceGetAttribute(&numberOfSMs, cudaDevAttrMultiProcessorCount, deviceId);
+    printf("Device ID: %d\tNumber of SMs: %d\n", deviceId, numberOfSMs);
+
     int N = 10000;
     UnitSample* samples;
 
@@ -352,6 +359,7 @@ void solver_trans_inter_2ac() {
         cudaMallocManaged((void**)&samples[id].q_real_sols, 3 * 56 * sizeof(double));
         cudaMallocManaged((void**)&samples[id].t_real_sols, 3 * 56 * sizeof(double)); 
         cudaMallocManaged((void**)&samples[id].rotm_real_sols, 9 * 56 * sizeof(double));
+
         samples[id].is_known_angle = is_known_angle;
         samples[id].actype = actype;
 
@@ -371,54 +379,63 @@ void solver_trans_inter_2ac() {
         for (int i = 0; i < 6; i++) {
             samples[id].extrinsic_T_camera[i] = extrinsic_T_camera[i];
         }
+
+        cudaMemPrefetchAsync((void**)&samples[id].extrinsic_R_camera, 18 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].extrinsic_T_camera, 6 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].affine_tran, 8 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].Image_1, 6 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].Image_2, 6 * sizeof(double), deviceId); 
+        cudaMemPrefetchAsync((void**)&samples[id].q_real_sols, 3 * 56 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].t_real_sols, 3 * 56 * sizeof(double), deviceId); 
+        cudaMemPrefetchAsync((void**)&samples[id].rotm_real_sols, 9 * 56 * sizeof(double), deviceId);
     }
 
     TicToc t_time;
+
+    std::cout << "pppp" << std::endl;
 
     dim3 blockSize(256);
     dim3 gridSize((N + blockSize.x - 1) / blockSize.x);
 
     solver_trans_inter_2ac_core<<<gridSize, blockSize>>>(samples, N);
 
-    std::cout << "pppp" << std::endl;
-
     cudaDeviceSynchronize();
 
     std::cout << "time : " << t_time.toc() << std::endl;
 
-    // int idx = 0;
-    // printf("num_sols: %d\n", samples[idx].num_sols);
-    // for (int i = 0; i < samples[idx].num_sols; i++) {
-    //     printf("q%d: %lf, %lf, %lf\n", i, 
-    //             samples[idx].q_real_sols[i*3], 
-    //             samples[idx].q_real_sols[i*3+1], 
-    //             samples[idx].q_real_sols[i*3+2]);
-    //     printf("t%d: %lf, %lf, %lf\n", i, 
-    //             samples[idx].t_real_sols[i*3], 
-    //             samples[idx].t_real_sols[i*3+1], 
-    //             samples[idx].t_real_sols[i*3+2]);
-    // }
+    int idx = 0;
+    printf("num_sols: %d\n", samples[idx].num_sols);
+    for (int i = 0; i < samples[idx].num_sols; i++) {
+        printf("q%d: %lf, %lf, %lf\n", i, 
+                samples[idx].q_real_sols[i*3], 
+                samples[idx].q_real_sols[i*3+1], 
+                samples[idx].q_real_sols[i*3+2]);
+        printf("t%d: %lf, %lf, %lf\n", i, 
+                samples[idx].t_real_sols[i*3], 
+                samples[idx].t_real_sols[i*3+1], 
+                samples[idx].t_real_sols[i*3+2]);
+    }
 
-    // for (int id = 0; id < N; id++) {
+    for (int id = 0; id < N; id++) {
     //     std::cout << id << "_" << "-1" << std::endl;
-    //     cudaFree(samples[id].extrinsic_R_camera);
+        cudaFree(samples[id].extrinsic_R_camera);
     //     std::cout << id << "_" << "0" << std::endl;
-    //     cudaFree(samples[id].extrinsic_T_camera);
+        cudaFree(samples[id].extrinsic_T_camera);
     //     std::cout << id << "_" << "1" << std::endl;
-    //     cudaFree(samples[id].affine_tran);
+        cudaFree(samples[id].affine_tran);
     //     std::cout << id << "_" << "2" << std::endl;
-    //     cudaFree(samples[id].Image_1);
+        cudaFree(samples[id].Image_1);
     //     std::cout << id << "_" << "3" << std::endl;
-    //     cudaFree(samples[id].Image_2); 
+        cudaFree(samples[id].Image_2); 
     //     std::cout << id << "_" << "4" << std::endl;
-    //     cudaFree(samples[id].q_real_sols);
+        cudaFree(samples[id].q_real_sols);
     //     std::cout << id << "_" << "5" << std::endl;
-    //     cudaFree(samples[id].t_real_sols); 
+        cudaFree(samples[id].t_real_sols); 
     //     std::cout << id << "_" << "6" << std::endl;
-    //     cudaFree(samples[id].rotm_real_sols);
+        cudaFree(samples[id].rotm_real_sols);
     //     std::cout << id << "_" << "7" << std::endl;
-    // }
+    }
     // std::cout << "aa" << std::endl;
-    // cudaFree(samples);
+    cudaFree(samples);
     // std::cout << "bb" << std::endl;
 }

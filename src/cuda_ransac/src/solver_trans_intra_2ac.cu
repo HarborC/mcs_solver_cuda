@@ -141,7 +141,7 @@ __global__ void solver_trans_intra_2ac_core(UnitSample *all_samples, size_t N) {
         calculate_translation(sols, M, q_arr, t_arr, all_samples[idx].is_known_angle);
         cayley2rotm(num_sols, rotm, q_arr);
 
-        printf("thread%d result:\n", idx);
+        // printf("thread%d result:\n", idx);
         if (num_sols > 0) {
             all_samples[idx].num_sols = num_sols;
 
@@ -197,7 +197,15 @@ __global__ void solver_trans_intra_2ac_core(UnitSample *all_samples, size_t N) {
 }
 
 void solver_trans_intra_2ac() {
-    int N = 10000;
+    int deviceId;
+    int numberOfSMs;
+    cudaGetDevice(&deviceId);
+    cudaDeviceGetAttribute(&numberOfSMs, cudaDevAttrMultiProcessorCount, deviceId);
+    printf("Device ID: %d\tNumber of SMs: %d\n", deviceId, numberOfSMs);
+
+    printf("double: %d", sizeof(double));
+
+    int N = 30;
     UnitSample* samples;
 
     double Image_1[6] = {0.019586866763680, 0.022571478986646, 1.0, 0.004320239058633, -0.417972219879661, 1.0};
@@ -213,6 +221,12 @@ void solver_trans_intra_2ac() {
     double extrinsic_T_camera[6] = {0.537667139546100, 1.833885014595086, -2.258846861003648, 
                                     0.862173320368121, 0.318765239858981, -1.307688296305273};
 
+    printf("one sample need %lfMB", double(18 * sizeof(double) + 6 * sizeof(double) 
+                                         + 8 * sizeof(double) + 6 * sizeof(double)
+                                         + 6 * sizeof(double) + 3 * 56 * sizeof(double)
+                                         + 3 * 56 * sizeof(double) + 9 * 56 * sizeof(double) 
+                                         + sizeof(bool) + sizeof(AC_TYPE)) / (1024.0 * 1024.0));
+
     cudaMallocManaged((void**)&samples, N * sizeof(UnitSample));
     for (int id = 0; id < N; id++) {
         cudaMallocManaged((void**)&samples[id].extrinsic_R_camera, 18 * sizeof(double));
@@ -223,6 +237,16 @@ void solver_trans_intra_2ac() {
         cudaMallocManaged((void**)&samples[id].q_real_sols, 3 * 56 * sizeof(double));
         cudaMallocManaged((void**)&samples[id].t_real_sols, 3 * 56 * sizeof(double)); 
         cudaMallocManaged((void**)&samples[id].rotm_real_sols, 9 * 56 * sizeof(double));
+
+        cudaMemPrefetchAsync((void**)&samples[id].extrinsic_R_camera, 18 * sizeof(double), cudaCpuDeviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].extrinsic_T_camera, 6 * sizeof(double), cudaCpuDeviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].affine_tran, 8 * sizeof(double), cudaCpuDeviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].Image_1, 6 * sizeof(double), cudaCpuDeviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].Image_2, 6 * sizeof(double), cudaCpuDeviceId); 
+        cudaMemPrefetchAsync((void**)&samples[id].q_real_sols, 3 * 56 * sizeof(double), cudaCpuDeviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].t_real_sols, 3 * 56 * sizeof(double), cudaCpuDeviceId); 
+        cudaMemPrefetchAsync((void**)&samples[id].rotm_real_sols, 9 * 56 * sizeof(double), cudaCpuDeviceId);
+
         samples[id].is_known_angle = false;
         samples[id].actype = AC_TYPE::INTRA_CAM_CONSTRAINT_FULL;
 
@@ -242,6 +266,15 @@ void solver_trans_intra_2ac() {
         for (int i = 0; i < 6; i++) {
             samples[id].extrinsic_T_camera[i] = extrinsic_T_camera[i];
         }
+
+        cudaMemPrefetchAsync((void**)&samples[id].extrinsic_R_camera, 18 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].extrinsic_T_camera, 6 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].affine_tran, 8 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].Image_1, 6 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].Image_2, 6 * sizeof(double), deviceId); 
+        cudaMemPrefetchAsync((void**)&samples[id].q_real_sols, 3 * 56 * sizeof(double), deviceId);
+        cudaMemPrefetchAsync((void**)&samples[id].t_real_sols, 3 * 56 * sizeof(double), deviceId); 
+        cudaMemPrefetchAsync((void**)&samples[id].rotm_real_sols, 9 * 56 * sizeof(double), deviceId);
     }
      
     TicToc t_time;
@@ -257,28 +290,29 @@ void solver_trans_intra_2ac() {
 
     std::cout << "time : " << t_time.toc() << std::endl;
 
-    // int idx = 0;
-    // printf("num_sols: %d\n", samples[idx].num_sols);
-    // for (int i = 0; i < samples[idx].num_sols; i++) {
+    // for (int idx = 0; idx < N; idx++) {
+    // // printf("num_sols: %d\n", samples[idx].num_sols);
+    // for (int i = 0; i < 1; i++) {
     //     printf("q%d: %lf, %lf, %lf\n", i, 
     //             samples[idx].q_real_sols[i*3], 
     //             samples[idx].q_real_sols[i*3+1], 
     //             samples[idx].q_real_sols[i*3+2]);
-    //     printf("t%d: %lf, %lf, %lf\n", i, 
-    //             samples[idx].t_real_sols[i*3], 
-    //             samples[idx].t_real_sols[i*3+1], 
-    //             samples[idx].t_real_sols[i*3+2]);
+    //     // printf("t%d: %lf, %lf, %lf\n", i, 
+    //     //         samples[idx].t_real_sols[i*3], 
+    //     //         samples[idx].t_real_sols[i*3+1], 
+    //     //         samples[idx].t_real_sols[i*3+2]);
+    // }
     // }
 
-    // for (int id = 0; id < N; id++) {
-    //     cudaFree(samples[id].extrinsic_R_camera);
-    //     cudaFree(samples[id].extrinsic_T_camera);
-    //     cudaFree(samples[id].affine_tran);
-    //     cudaFree(samples[id].Image_1);
-    //     cudaFree(samples[id].Image_2); 
-    //     cudaFree(samples[id].q_real_sols);
-    //     cudaFree(samples[id].t_real_sols); 
-    //     cudaFree(samples[id].rotm_real_sols);
-    // }
-    // cudaFree(samples);
+    for (int id = 0; id < N; id++) {
+        cudaFree(samples[id].extrinsic_R_camera);
+        cudaFree(samples[id].extrinsic_T_camera);
+        cudaFree(samples[id].affine_tran);
+        cudaFree(samples[id].Image_1);
+        cudaFree(samples[id].Image_2); 
+        cudaFree(samples[id].q_real_sols);
+        cudaFree(samples[id].t_real_sols); 
+        cudaFree(samples[id].rotm_real_sols);
+    }
+    cudaFree(samples);
 }

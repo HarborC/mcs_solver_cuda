@@ -60,35 +60,35 @@ struct UnitSample {
     // double* zr;
     // double* zi;
     // double *coeffs, *input;
+
+    double *input;
+    double *C0;
+	double *C1;
+    double *C12;
+    double *RR;
+    double *AM;
 };
 
 __device__ void format_convert_generic(
     double* input_Image_1, double* input_Image_2, double* input_affine_tran, 
     double* extrinsic_R_camera, double* extrinsic_T_camera, 
-    Eigen::Vector3d* Image1, Eigen::Vector3d* Image2, Eigen::Matrix3d* Ac,
-    Eigen::Matrix3d* R_camera, Eigen::Vector3d* T_camera);
+    Eigen::Vector3d Image1[2], Eigen::Vector3d Image2[2], Eigen::Matrix3d Ac[2],
+    Eigen::Matrix3d R_camera[4], Eigen::Vector3d T_camera[4]);
 
 __device__ void format_convert(
     double* input_Image_1, double* input_Image_2, double* input_affine_tran, 
     double* extrinsic_R_camera, double* extrinsic_T_camera, 
-    Eigen::Vector3d* Image1, Eigen::Vector3d* Image2, Eigen::Matrix3d* Ac,
-    Eigen::Matrix3d* R_camera, Eigen::Vector3d* T_camera);
+    Eigen::Vector3d Image1[2], Eigen::Vector3d Image2[2], Eigen::Matrix3d Ac[2],
+    Eigen::Matrix3d R_camera[2], Eigen::Vector3d T_camera[2]);
 
-__device__ void var3_order2_two_multiplication(Eigen::Matrix<double,1,10>& a_arr, Eigen::Matrix<double,1,10>& b_arr, Eigen::Matrix<double,1,35>& c_arr);
+__device__ void var3_order2_two_multiplication(double a_arr[10], double b_arr[10], double c_arr[35]);
 
-__device__ void var3_order4_multiplication(Eigen::Matrix<double,1,35>& a_arr, Eigen::Matrix<double,1,35>& b_arr, Eigen::Matrix<double,1,165>& c_arr);
+__device__ void var3_order4_multiplication(double a_arr[35], double b_arr[35], double c_arr[165]);
 
-__device__ void var3_order4_var3_order2_multiplication(Eigen::Matrix<double,1,35>& a_arr, Eigen::Matrix<double,1,10>& b_arr, Eigen::Matrix<double,1,84>& c_arr);
+__device__ void var3_order4_var3_order2_multiplication(double a_arr[35], double b_arr[10], double c_arr[84]);
 
-__device__ void var3_order2_three_multiplication(
-    Eigen::Matrix<double,1,10>& a_arr, Eigen::Matrix<double,1,10>& b_arr, 
-    Eigen::Matrix<double,1,10>& c_arr, Eigen::Matrix<double,1,84>& d_arr);
+__device__ void var3_order2_three_multiplication(double a_arr[10], double b_arr[10], double c_arr[10], double d_arr[10]);
 
-__device__ void var3_order2_four_multiplication(
-    Eigen::Matrix<double,1,10>& a_arr, Eigen::Matrix<double,1,10>& b_arr, 
-    Eigen::Matrix<double,1,10>& c_arr, Eigen::Matrix<double,1,10>& d_arr,
-    Eigen::Matrix<double,1,165>& e_arr);
+__device__ void var3_order2_four_multiplication(double a_arr[10], double b_arr[10], double c_arr[10], double d_arr[10], double e_arr[165]);
 
-__device__ void cayley2rotm(Eigen::Matrix<double,3,3>& rotm, Eigen::Matrix<double,3,1>& q);
-
-__device__ void cayley2rotm(int num_sols, Eigen::Matrix<double,3,3>* rotm, Eigen::Matrix<double,3,1>* q_arr);
+__device__ void cayley2rotm(Eigen::Matrix<double,3,3>* rotm, Eigen::Matrix<double,3,1> q);

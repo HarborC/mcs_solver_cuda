@@ -203,23 +203,15 @@ __device__ Eigen::MatrixXd solver_trans_inter_2ac_core_48(Eigen::Matrix<double, 
 	return sols;
 }
 
-__device__ Eigen::MatrixXd solve_equation_inter_cam_48(double *input, double* zr, double* zi) {
+__device__ Eigen::MatrixXd solve_equation_inter_cam_48(double *input) {
     Eigen::Matrix<double, 1330, 1> data = Eigen::Map<Eigen::Matrix<double, 1330, 1>>(input, 1330); 
     Eigen::MatrixXd sols = solver_trans_inter_2ac_core_48(data);
-    for (int i = 0; i < sols.size(); i++) {
-        zr[i] = sols(i); //.real();
-        // zi[i] = sols(i).imag();
-    }
     return sols;
 }
 
-__device__ Eigen::MatrixXd solve_equation_inter_cam_56(double *input, double* zr, double* zi) {
+__device__ Eigen::MatrixXd solve_equation_inter_cam_56(double *input) {
     Eigen::Matrix<double, 1260, 1> data = Eigen::Map<Eigen::Matrix<double, 1260, 1>>(input, 1260); 
     Eigen::MatrixXd sols = solver_trans_inter_2ac_core_56(data);
-    for (int i = 0; i < sols.size(); i++) {
-        zr[i] = sols(i); //.real();
-        // zi[i] = sols(i).imag();
-    }
     return sols;
 }
 
@@ -228,18 +220,13 @@ __global__ void solver_trans_inter_2ac_core(UnitSample *all_samples, size_t N) {
     if(idx < N) {
         double *coeffs, *input;
         if (all_samples[idx].actype == AC_TYPE::INTER_CAM_CONSTRAINT_PARTIAL) {
-            coeffs = (double*)malloc(15 * 84 * sizeof(double));
             input = (double*)malloc(84 * 15 * sizeof(double));
         } else {
-            coeffs = (double*)malloc(17 * 84 * sizeof(double));
             input = (double*)malloc(1330 * sizeof(double));
         }
 
-        Eigen::Matrix<double,1,10>** M = (Eigen::Matrix<double,1,10>**)malloc(6 * sizeof(Eigen::Matrix<double,1,10>*));
-        for (int i = 0; i < 6; i++) {
-            M[i] = (Eigen::Matrix<double,1,10>*)malloc(4 * sizeof(Eigen::Matrix<double,1,10>));
-        }
-        create_coeffs(coeffs, input, M, 
+        Eigen::Matrix<double,1,10> M[6][4];
+        create_coeffs(input, M, 
                       all_samples[idx].Image_1, all_samples[idx].Image_2, 
                       all_samples[idx].affine_tran, all_samples[idx].extrinsic_R_camera, 
                       all_samples[idx].extrinsic_T_camera, all_samples[idx].actype, 
@@ -247,74 +234,56 @@ __global__ void solver_trans_inter_2ac_core(UnitSample *all_samples, size_t N) {
 
         Eigen::MatrixXd sols;
         if (all_samples[idx].actype == AC_TYPE::INTER_CAM_CONSTRAINT_PARTIAL) {
-            double *zr = (double*)malloc(3 * 56 * sizeof(double));
-            double *zi = (double*)malloc(3 * 56 * sizeof(double));
-            sols = solve_equation_inter_cam_56(input, zr, zi);
-            free(zr);
-            free(zi);
+            sols = solve_equation_inter_cam_56(input);
         } else {
-            double *zr = (double*)malloc(3 * 48 * sizeof(double));
-            double *zi = (double*)malloc(3 * 48 * sizeof(double));
-            sols = solve_equation_inter_cam_48(input, zr, zi);
-            free(zr);
-            free(zi);
+            sols = solve_equation_inter_cam_48(input);
         }
 
-        int num_sols = sols.cols();
-        Eigen::Matrix<double,3,1>* q_arr = (Eigen::Matrix<double,3,1>*)malloc(num_sols * sizeof(Eigen::Matrix<double,3,1>));
-        Eigen::Matrix<double,3,1>* t_arr = (Eigen::Matrix<double,3,1>*)malloc(num_sols * sizeof(Eigen::Matrix<double,3,1>));
-        Eigen::Matrix<double,3,3>* rotm = (Eigen::Matrix<double,3,3>*)malloc(num_sols * sizeof(Eigen::Matrix<double,3,3>));
-        calculate_translation(sols, M, q_arr, t_arr, all_samples[idx].is_known_angle);
-        cayley2rotm(num_sols, rotm, q_arr);
+        // const int num_sols = sols.cols();
+        // Eigen::Matrix<double,3,1> q_arr[num_sols];
+        // Eigen::Matrix<double,3,1> t_arr[num_sols];
+        // Eigen::Matrix<double,3,3> rotm[num_sols];
+        // calculate_translation(sols, M, q_arr, t_arr, all_samples[idx].is_known_angle);
+        // cayley2rotm(num_sols, rotm, q_arr);
 
-        printf("thread%d result:\n", idx);
-        if (num_sols > 0) {
-            all_samples[idx].num_sols = num_sols;
+        // printf("thread%d result:\n", idx);
+        // if (num_sols > 0) {
+        //     all_samples[idx].num_sols = num_sols;
 
-            // all_samples[idx].q_real_sols = new double[num_sols * 3];
-            // all_samples[idx].t_real_sols = new double[num_sols * 3];
-            // all_samples[idx].rotm_real_sols = new double[num_sols * 9];
-            for (int i = 0; i < num_sols; i++) {
-                Eigen::Matrix<double,3,1> q = q_arr[i];
+        //     // all_samples[idx].q_real_sols = new double[num_sols * 3];
+        //     // all_samples[idx].t_real_sols = new double[num_sols * 3];
+        //     // all_samples[idx].rotm_real_sols = new double[num_sols * 9];
+        //     for (int i = 0; i < num_sols; i++) {
+        //         Eigen::Matrix<double,3,1> q = q_arr[i];
                 
-                Eigen::Matrix<double,3,1> t = t_arr[i];
-                Eigen::Matrix<double,3,3> r = rotm[i];
+        //         Eigen::Matrix<double,3,1> t = t_arr[i];
+        //         Eigen::Matrix<double,3,3> r = rotm[i];
 
-                // printf("q%d: %lf, %lf, %lf\n", i, q(0), q(1), q(2));
-                // printf("t%d: %lf, %lf, %lf\n", i, t(0), t(1), t(2));
+        //         // printf("q%d: %lf, %lf, %lf\n", i, q(0), q(1), q(2));
+        //         // printf("t%d: %lf, %lf, %lf\n", i, t(0), t(1), t(2));
 
-                all_samples[idx].q_real_sols[i*3] = q(0);
-                all_samples[idx].q_real_sols[i*3+1] = q(1);
-                all_samples[idx].q_real_sols[i*3+2] = q(2);
-                all_samples[idx].t_real_sols[i*3] = t(0);
-                all_samples[idx].t_real_sols[i*3+1] = t(1);
-                all_samples[idx].t_real_sols[i*3+2] = t(2);
+        //         all_samples[idx].q_real_sols[i*3] = q(0);
+        //         all_samples[idx].q_real_sols[i*3+1] = q(1);
+        //         all_samples[idx].q_real_sols[i*3+2] = q(2);
+        //         all_samples[idx].t_real_sols[i*3] = t(0);
+        //         all_samples[idx].t_real_sols[i*3+1] = t(1);
+        //         all_samples[idx].t_real_sols[i*3+2] = t(2);
 
-                all_samples[idx].rotm_real_sols[i*9] = r(0,0);
-                all_samples[idx].rotm_real_sols[i*9+1] = r(1,0);
-                all_samples[idx].rotm_real_sols[i*9+2] = r(2,0);
-                all_samples[idx].rotm_real_sols[i*9+3] = r(0,1);
-                all_samples[idx].rotm_real_sols[i*9+4] = r(1,1);
-                all_samples[idx].rotm_real_sols[i*9+5] = r(2,1);
-                all_samples[idx].rotm_real_sols[i*9+6] = r(0,2);
-                all_samples[idx].rotm_real_sols[i*9+7] = r(1,2);
-                all_samples[idx].rotm_real_sols[i*9+8] = r(2,2);
-            }
-        } else {
-            all_samples[idx].num_sols = 0;
-        }
+        //         all_samples[idx].rotm_real_sols[i*9] = r(0,0);
+        //         all_samples[idx].rotm_real_sols[i*9+1] = r(1,0);
+        //         all_samples[idx].rotm_real_sols[i*9+2] = r(2,0);
+        //         all_samples[idx].rotm_real_sols[i*9+3] = r(0,1);
+        //         all_samples[idx].rotm_real_sols[i*9+4] = r(1,1);
+        //         all_samples[idx].rotm_real_sols[i*9+5] = r(2,1);
+        //         all_samples[idx].rotm_real_sols[i*9+6] = r(0,2);
+        //         all_samples[idx].rotm_real_sols[i*9+7] = r(1,2);
+        //         all_samples[idx].rotm_real_sols[i*9+8] = r(2,2);
+        //     }
+        // } else {
+        //     all_samples[idx].num_sols = 0;
+        // }
 
-        free(coeffs);
         free(input);
-
-        for (int i = 0; i < 6; i++) {
-            free(M[i]);
-        }
-        free(M);
-
-        free(q_arr);
-        free(t_arr);
-        free(rotm);
     }
 
     return;

@@ -24,7 +24,7 @@ Eigen::MatrixXcd solve_equation_intra_cam_48(double *input, double* zr, double* 
 }
 
 int main() { 
-    int N = 30;
+    int N = 10000;
     bool is_known_angle = false;
     AC_TYPE actype = AC_TYPE::INTRA_CAM_CONSTRAINT_FULL;
 
@@ -52,6 +52,17 @@ int main() {
     coeffs = new double[17*84];
     std::vector<std::vector<Eigen::Matrix<double,1,10>>> M;
     create_coeffs(coeffs, input, M, Image_1, Image_2, affine_tran, extrinsic_R_camera, extrinsic_T_camera, actype, is_known_angle);
+
+    // for (int i = 0; i < 6; i++) {
+    //     for (int j = 0; j < 4; j++) {
+    //         printf("(%d, %d): ", i, j);
+    //         for (int k = 0; k < 10; k++) {
+    //             printf("%lf ", M[i][j](k));
+    //         }
+    //         printf("\n");
+    //     }
+    // }
+        
 
     Eigen::MatrixXcd sols;
     sols = solve_equation_intra_cam_48(input, zr, zi);

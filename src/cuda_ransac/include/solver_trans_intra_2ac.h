@@ -1,3 +1,3 @@
 #pragma once
 
-void solver_trans_intra_2ac();
+void solver_trans_intra_2ac(int N);

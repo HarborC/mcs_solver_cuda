@@ -44,15 +44,7 @@ __device__ void dec(int m, int n, int p, double **A, double** QR, double* RDiag)
 	}
 }
 
-__device__ bool isFullRank(int p, double* RDiag) {
-	for (int j = 0; j<p; ++j)
-	if (RDiag[j] == 0)
-		return false;
-
-	return true;
-}
-
-__device__ bool solve(int m, int n, double** A, double *b, double* x_) {
+__device__ bool solve(const int m, const int n, double** A, double *b, double* x_) {
 	int p = min(m, n);
 
 	double** QR;
@@ -199,6 +191,107 @@ __device__ void test() {
     solve(m, n, nx, A, B, X);
 
     print_matrix(n, nx, X);
+}
+
+__device__ bool isFullRank(int p, double* RDiag) {
+	for (int j = 0; j<p; ++j)
+		if (RDiag[j] == 0)
+			return false;
+
+	return true;
+}
+
+__device__ bool solve2(const int m, const int n, const int nx, const int p, double* A, double *B, double* X_, double *QR, double *RDiag, double *X) {
+	// int p = min(m, n);
+
+	// double QR[m*n];
+	// double RDiag[p];
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < n; j++) {
+			QR[i*n+j] = A[i*n+j];
+		}
+	}
+
+	dec2(m, n, p, A, QR, RDiag);
+
+	// matrix is rank deficient
+	if (!isFullRank(p, RDiag)) {
+		return false;
+	}
+
+	
+
+	// double X[m*nx];
+	for (int i = 0; i<m; ++i) {
+		for (int j = 0; j<nx; ++j) {
+			X[i*nx+j] = B[i*nx+j];
+		}
+	}
+	
+	// compute Y = transpose(Q)*B
+	for (int k = 0; k<n; ++k)
+		for (int j = 0; j<nx; ++j) {
+			double s = 0;
+			for (int i = k; i<m; ++i)
+				s += QR[i*n+k] * X[i*nx+j];
+
+			s = -s / QR[k*n+k];
+			for (int i = k; i<m; ++i)
+				X[i*nx+j] += s*QR[i*n+k];
+		}
+
+	// solve R*X = Y;
+	for (int k = n - 1; k >= 0; --k) {
+		for (int j = 0; j<nx; ++j)
+			X[k*nx+j] /= RDiag[k];
+
+		for (int i = 0; i<k; ++i)
+			for (int j = 0; j<nx; ++j)
+				X[i*nx+j] -= X[k*nx+j] * QR[i*n+k];
+	}
+
+	// return n x nx portion of X
+	// Matrix<double> X_(n, nx);
+	for (int i = 0; i<n; ++i)
+		for (int j = 0; j<nx; ++j)
+			X_[i*nx+j] = X[i*nx+j];
+
+	return true;
+}
+
+__device__ void dec2(const int m, const int n, const int p, double *A, double* QR, double* RDiag) {
+	// main loop.
+	for (int k = 0; k<p; ++k) {
+		// Compute 2-norm of k-th column without under/overflow.
+		double nrm = 0;
+		for (int i = k; i<m; ++i)
+			nrm = hypot(nrm, QR[i*n+k]);
+
+		if (nrm != 0) {
+			// Form k-th Householder vector.
+			if (QR[k*n+k] < 0)
+				nrm = -nrm;
+
+			for (int i = k; i<m; ++i)
+				QR[i*n+k] /= nrm;
+
+			QR[k*n+k] += 1;
+
+			// Apply transformation to remaining columns.
+			for (int j = k + 1; j<n; ++j) {
+				double s = 0;
+				for (int i = k; i<m; ++i)
+					s += QR[i*n+k] * QR[i*n+j];
+
+				s = -s / QR[k*n+k];
+				for (int i = k; i<m; ++i)
+					QR[i*n+j] += s*QR[i*n+k];
+			}
+		}
+
+		RDiag[k] = -nrm;
+	}
+
 }
 
 }

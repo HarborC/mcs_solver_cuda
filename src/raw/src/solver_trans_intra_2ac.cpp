@@ -23,8 +23,11 @@ Eigen::MatrixXcd solve_equation_intra_cam_48(double *input, double* zr, double* 
     return sols;
 }
 
-int main() { 
-    int N = 10000;
+int main(int argc, char ** argv) {
+    int N = 1000;
+    if (argc >= 2)
+       N = std::atoi(argv[1]);
+
     bool is_known_angle = false;
     AC_TYPE actype = AC_TYPE::INTRA_CAM_CONSTRAINT_FULL;
 

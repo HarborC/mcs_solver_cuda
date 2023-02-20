@@ -61,12 +61,12 @@ struct UnitSample {
     // double* zi;
     // double *coeffs, *input;
 
-    double *input;
-    double *C0;
-	double *C1;
-    double *C12;
-    double *RR;
-    double *AM;
+    // double *input;
+    // double *C0;
+	// double *C1;
+    // double *C12;
+    // double *RR;
+    // double *AM;
 };
 
 __device__ void format_convert_generic(

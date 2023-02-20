@@ -26,7 +26,8 @@ find_package(CUDA REQUIRED)
 
 include_directories(
   ${CMAKE_SOURCE_DIR}/thirdparty/
-  ${CMAKE_SOURCE_DIR}/thirdparty/eigen-3.4.0)
+  ${CMAKE_SOURCE_DIR}/thirdparty/eigen-3.4.0
+  /usr/local/cuda/include/)
 
 include_directories(src)
 add_subdirectory(src)
